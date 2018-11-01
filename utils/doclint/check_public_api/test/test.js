@@ -17,7 +17,7 @@
 const path = require('path');
 const puppeteer = require('../../../..');
 const checkPublicAPI = require('..');
-const Source = require('../../Source');
+const SourceFactory = require('../../SourceFactory');
 const mdBuilder = require('../MDBuilder');
 const jsBuilder = require('../JSBuilder');
 const GoldenUtils = require('../../../../test/golden-utils');
@@ -64,8 +64,9 @@ async function testLint(state, test) {
     toBeGolden: GoldenUtils.compare.bind(null, dirPath, dirPath)
   });
 
-  const mdSources = await Source.readdir(dirPath, '.md');
-  const jsSources = await Source.readdir(dirPath, '.js');
+  const factory = new SourceFactory();
+  const mdSources = await factory.readdir(dirPath, '.md');
+  const jsSources = await factory.readdir(dirPath, '.js');
   const messages = await checkPublicAPI(page, mdSources, jsSources);
   const errors = messages.map(message => message.text);
   expect(errors.join('\n')).toBeGolden('result.txt');
@@ -76,7 +77,8 @@ async function testMDBuilder(state, test) {
   const {expect} = new Matchers({
     toBeGolden: GoldenUtils.compare.bind(null, dirPath, dirPath)
   });
-  const sources = await Source.readdir(dirPath, '.md');
+  const factory = new SourceFactory();
+  const sources = await factory.readdir(dirPath, '.md');
   const {documentation} = await mdBuilder(page, sources);
   expect(serialize(documentation)).toBeGolden('result.txt');
 }
@@ -86,7 +88,8 @@ async function testJSBuilder(state, test) {
   const {expect} = new Matchers({
     toBeGolden: GoldenUtils.compare.bind(null, dirPath, dirPath)
   });
-  const sources = await Source.readdir(dirPath, '.js');
+  const factory = new SourceFactory();
+  const sources = await factory.readdir(dirPath, '.js');
   const {documentation} = await jsBuilder(sources);
   expect(serialize(documentation)).toBeGolden('result.txt');
 }

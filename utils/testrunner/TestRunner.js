@@ -208,10 +208,10 @@ class TestPass {
   async _runTest(workerId, test, state) {
     if (this._termination)
       return;
-    this._runner._willStartTest(test, workerId);
+    this._runner._willStartTest(test);
     if (test.declaredMode === TestMode.Skip) {
       test.result = TestResult.Skipped;
-      this._runner._didFinishTest(test, workerId);
+      this._runner._didFinishTest(test);
       return;
     }
     this._runningUserCallbacks.set(workerId, test._userCallback);
@@ -226,7 +226,7 @@ class TestPass {
       test.result = TestResult.TimedOut;
     else
       test.result = TestResult.Failed;
-    this._runner._didFinishTest(test, workerId);
+    this._runner._didFinishTest(test);
   }
 
   async _runHook(workerId, suite, hookName, ...args) {
@@ -295,11 +295,7 @@ class TestRunner extends EventEmitter {
   }
 
   _addTest(mode, name, callback) {
-    let suite = this._currentSuite;
-    let isSkipped = suite.declaredMode === TestMode.Skip;
-    while ((suite = suite.parentSuite))
-      isSkipped |= suite.declaredMode === TestMode.Skip;
-    const test = new Test(this._currentSuite, name, callback, isSkipped ? TestMode.Skip : mode, this._timeout);
+    const test = new Test(this._currentSuite, name, callback, mode, this._timeout);
     this._currentSuite.children.push(test);
     this._tests.push(test);
     this._hasFocusedTestsOrSuites = this._hasFocusedTestsOrSuites || mode === TestMode.Focus;
@@ -316,7 +312,7 @@ class TestRunner extends EventEmitter {
   }
 
   _addHook(hookName, callback) {
-    assert(this._currentSuite[hookName] === null, `Only one ${hookName} hook available per suite`);
+    console.assert(this._currentSuite[hookName] === null, `Only one ${hookName} hook available per suite`);
     const hook = new UserCallback(callback, this._timeout);
     this._currentSuite[hookName] = hook;
   }
@@ -380,22 +376,13 @@ class TestRunner extends EventEmitter {
     return this._parallel;
   }
 
-  _willStartTest(test, workerId) {
-    this.emit(TestRunner.Events.TestStarted, test, workerId);
+  _willStartTest(test) {
+    this.emit('teststarted', test);
   }
 
-  _didFinishTest(test, workerId) {
-    this.emit(TestRunner.Events.TestFinished, test, workerId);
+  _didFinishTest(test) {
+    this.emit('testfinished', test);
   }
-}
-
-/**
- * @param {*} value
- * @param {string=} message
- */
-function assert(value, message) {
-  if (!value)
-    throw new Error(message);
 }
 
 TestRunner.Events = {

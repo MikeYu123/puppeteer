@@ -14,17 +14,12 @@
  * limitations under the License.
  */
 
-const assert = require('assert');
 const esprima = require('esprima');
 const ESTreeWalker = require('../../ESTreeWalker');
 const Documentation = require('./Documentation');
 
 class JSOutline {
-  /**
-   * @param {string} text
-   * @param {string} name
-   */
-  constructor(text, name) {
+  constructor(text) {
     this.classes = [];
     /** @type {!Map<string, string>} */
     this.inheritance = new Map();
@@ -32,12 +27,11 @@ class JSOutline {
     this._eventsByClassName = new Map();
     this._currentClassName = null;
     this._currentClassMembers = [];
-    this._name = name;
 
     this._text = text;
     const ast = esprima.parseScript(this._text, {loc: true, range: true});
     const walker = new ESTreeWalker(node => {
-      if (node.type === 'ClassDeclaration' || node.type === 'ClassExpression')
+      if (node.type === 'ClassDeclaration')
         this._onClassDeclaration(node);
       else if (node.type === 'MethodDefinition')
         this._onMethodDefinition(node);
@@ -52,16 +46,14 @@ class JSOutline {
   _onClassDeclaration(node) {
     this._flushClassIfNeeded();
     this._currentClassName = this._extractText(node.id);
-    if (!this._currentClassName)
-      this._currentClassName = this._name.substring(0, this._name.indexOf('.'));
     const superClass = this._extractText(node.superClass);
     if (superClass)
       this.inheritance.set(this._currentClassName, superClass);
   }
 
   _onMethodDefinition(node) {
-    assert(this._currentClassName !== null);
-    assert(node.value.type === 'FunctionExpression');
+    console.assert(this._currentClassName !== null);
+    console.assert(node.value.type === 'FunctionExpression');
     const methodName = this._extractText(node.key);
     if (node.kind === 'get') {
       const property = Documentation.Member.createProperty(methodName);
@@ -187,7 +179,7 @@ module.exports = async function(sources) {
   const errors = [];
   const inheritance = new Map();
   for (const source of sources) {
-    const outline = new JSOutline(source.text(), source.name());
+    const outline = new JSOutline(source.text());
     classes.push(...outline.classes);
     errors.push(...outline.errors);
     for (const entry of outline.inheritance)

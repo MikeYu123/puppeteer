@@ -14,42 +14,21 @@
  * limitations under the License.
  */
 
-const fs = require('fs');
-const path = require('path');
-const PROJECT_ROOT = fs.existsSync(path.join(__dirname, '..', 'package.json')) ? path.join(__dirname, '..') : path.join(__dirname, '..', '..');
-
 const utils = module.exports = {
-  /**
-   * @return {string}
-   */
-  projectRoot: function() {
-    return PROJECT_ROOT;
-  },
-
-  /**
-   * @return {*}
-   */
-  requireRoot: function(name) {
-    return require(path.join(PROJECT_ROOT, name));
-  },
-
   /**
    * @param {!Page} page
    * @param {string} frameId
    * @param {string} url
-   * @return {!Puppeteer.Frame}
    */
   attachFrame: async function(page, frameId, url) {
-    const handle = await page.evaluateHandle(attachFrame, frameId, url);
-    return await handle.asElement().contentFrame();
+    await page.evaluate(attachFrame, frameId, url);
 
-    async function attachFrame(frameId, url) {
+    function attachFrame(frameId, url) {
       const frame = document.createElement('iframe');
       frame.src = url;
       frame.id = frameId;
       document.body.appendChild(frame);
-      await new Promise(x => frame.onload = x);
-      return frame;
+      return new Promise(x => frame.onload = x);
     }
   },
 
@@ -92,21 +71,5 @@ const utils = module.exports = {
     for (const child of frame.childFrames())
       result += '\n' + utils.dumpFrames(child, '    ' + indentation);
     return result;
-  },
-
-  /**
-   * @param {!EventEmitter} emitter
-   * @param {string} eventName
-   * @return {!Promise<!Object>}
-   */
-  waitEvent: function(emitter, eventName, predicate = () => true) {
-    return new Promise(fulfill => {
-      emitter.on(eventName, function listener(event) {
-        if (!predicate(event))
-          return;
-        emitter.removeListener(eventName, listener);
-        fulfill(event);
-      });
-    });
   },
 };

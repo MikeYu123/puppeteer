@@ -42,7 +42,7 @@ const puppeteer = require('puppeteer');
 
   await listenFor('app-ready'); // Listen for "app-ready" custom event on page load.
 
-  await page.goto('https://www.chromestatus.com/features', {waitUntil: 'networkidle0'});
+  await page.goto('https://www.chromestatus.com/features', {waitUntil: 'networkidle2'});
 
   await browser.close();
 })();

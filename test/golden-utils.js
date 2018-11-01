@@ -18,30 +18,26 @@ const fs = require('fs');
 const Diff = require('text-diff');
 const mime = require('mime');
 const PNG = require('pngjs').PNG;
-const jpeg = require('jpeg-js');
 const pixelmatch = require('pixelmatch');
 
 module.exports = {compare};
 
 const GoldenComparators = {
   'image/png': compareImages,
-  'image/jpeg': compareImages,
   'text/plain': compareText
 };
-
 
 /**
  * @param {?Object} actualBuffer
  * @param {!Buffer} expectedBuffer
- * @param {!string} mimeType
  * @return {?{diff: (!Object:undefined), errorMessage: (string|undefined)}}
  */
-function compareImages(actualBuffer, expectedBuffer, mimeType) {
+function compareImages(actualBuffer, expectedBuffer) {
   if (!actualBuffer || !(actualBuffer instanceof Buffer))
     return { errorMessage: 'Actual result should be Buffer.' };
 
-  const actual = mimeType === 'image/png' ? PNG.sync.read(actualBuffer) : jpeg.decode(actualBuffer);
-  const expected = mimeType === 'image/png' ? PNG.sync.read(expectedBuffer) : jpeg.decode(expectedBuffer);
+  const actual = PNG.sync.read(actualBuffer);
+  const expected = PNG.sync.read(expectedBuffer);
   if (expected.width !== actual.width || expected.height !== actual.height) {
     return {
       errorMessage: `Sizes differ: expected image ${expected.width}px X ${expected.height}px, but got ${actual.width}px X ${actual.height}px. `
@@ -97,15 +93,14 @@ function compare(goldenPath, outputPath, actual, goldenName) {
     };
   }
   const expected = fs.readFileSync(expectedPath);
-  const mimeType = mime.getType(goldenName);
-  const comparator = GoldenComparators[mimeType];
+  const comparator = GoldenComparators[mime.lookup(goldenName)];
   if (!comparator) {
     return {
       pass: false,
-      message: 'Failed to find comparator with type ' + mimeType + ': '  + goldenName
+      message: 'Failed to find comparator with type ' + mime.lookup(goldenName) + ': '  + goldenName
     };
   }
-  const result = comparator(actual, expected, mimeType);
+  const result = comparator(actual, expected);
   if (!result)
     return { pass: true };
   ensureOutputDir();

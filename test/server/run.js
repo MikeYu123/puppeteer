@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Copyright 2017 Google Inc. All rights reserved.
  *
@@ -15,16 +14,16 @@
  * limitations under the License.
  */
 const path = require('path');
-const {TestServer} = require('../utils/testserver/');
+const SimpleServer = require('./SimpleServer');
 
 const port = 8907;
 const httpsPort = 8908;
-const assetsPath = path.join(__dirname, 'assets');
-const cachedPath = path.join(__dirname, 'assets', 'cached');
+const assetsPath = path.join(__dirname, '..', 'assets');
+const cachedPath = path.join(__dirname, '..', 'assets', 'cached');
 
 Promise.all([
-  TestServer.create(assetsPath, port),
-  TestServer.createHTTPS(assetsPath, httpsPort)
+  SimpleServer.create(assetsPath, port),
+  SimpleServer.createHTTPS(assetsPath, httpsPort)
 ]).then(([server, httpsServer]) => {
   server.enableHTTPCache(cachedPath);
   httpsServer.enableHTTPCache(cachedPath);

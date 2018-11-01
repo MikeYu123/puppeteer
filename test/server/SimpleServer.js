@@ -25,14 +25,14 @@ const WebSocketServer = require('ws').Server;
 const fulfillSymbol = Symbol('fullfil callback');
 const rejectSymbol = Symbol('reject callback');
 
-class TestServer {
+class SimpleServer {
   /**
    * @param {string} dirPath
    * @param {number} port
-   * @return {!TestServer}
+   * @return {!SimpleServer}
    */
   static async create(dirPath, port) {
-    const server = new TestServer(dirPath, port);
+    const server = new SimpleServer(dirPath, port);
     await new Promise(x => server._server.once('listening', x));
     return server;
   }
@@ -40,10 +40,10 @@ class TestServer {
   /**
    * @param {string} dirPath
    * @param {number} port
-   * @return {!TestServer}
+   * @return {!SimpleServer}
    */
   static async createHTTPS(dirPath, port) {
-    const server = new TestServer(dirPath, port, {
+    const server = new SimpleServer(dirPath, port, {
       key: fs.readFileSync(path.join(__dirname, 'key.pem')),
       cert: fs.readFileSync(path.join(__dirname, 'cert.pem')),
       passphrase: 'aaaa',
@@ -78,8 +78,6 @@ class TestServer {
     this._routes = new Map();
     /** @type {!Map<string, !{username:string, password:string}>} */
     this._auths = new Map();
-    /** @type {!Map<string, string>} */
-    this._csp = new Map();
     /** @type {!Map<string, !Promise>} */
     this._requestSubscribers = new Map();
   }
@@ -111,14 +109,6 @@ class TestServer {
     this._auths.set(path, {username, password});
   }
 
-  /**
-   * @param {string} path
-   * @param {string} csp
-   */
-  setCSP(path, csp) {
-    this._csp.set(path, csp);
-  }
-
   async stop() {
     this.reset();
     for (const socket of this._sockets)
@@ -136,8 +126,8 @@ class TestServer {
   }
 
   /**
-   * @param {string} from
-   * @param {string} to
+   * @param {string} fromPath
+   * @param {string} toPath
    */
   setRedirect(from, to) {
     this.setRoute(from, (req, res) => {
@@ -168,7 +158,6 @@ class TestServer {
   reset() {
     this._routes.clear();
     this._auths.clear();
-    this._csp.clear();
     const error = new Error('Static Server has been reset');
     for (const subscriber of this._requestSubscribers.values())
       subscriber[rejectSymbol].call(null, error);
@@ -185,7 +174,7 @@ class TestServer {
     const pathName = url.parse(request.url).path;
     if (this._auths.has(pathName)) {
       const auth = this._auths.get(pathName);
-      const credentials = Buffer.from((request.headers.authorization || '').split(' ')[1] || '', 'base64').toString();
+      const credentials = new Buffer((request.headers.authorization || '').split(' ')[1] || '', 'base64').toString();
       if (credentials !== `${auth.username}:${auth.password}`) {
         response.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Secure Area"' });
         response.end('HTTP Error 401 Unauthorized: Access is denied');
@@ -193,10 +182,8 @@ class TestServer {
       }
     }
     // Notify request subscriber.
-    if (this._requestSubscribers.has(pathName)) {
+    if (this._requestSubscribers.has(pathName))
       this._requestSubscribers.get(pathName)[fulfillSymbol].call(null, request);
-      this._requestSubscribers.delete(pathName);
-    }
     const handler = this._routes.get(pathName);
     if (handler) {
       handler.call(null, request, response);
@@ -223,12 +210,10 @@ class TestServer {
         return;
       }
       response.setHeader('Cache-Control', 'public, max-age=31536000');
-      response.setHeader('Last-Modified', this._startTime.toISOString());
+      response.setHeader('Last-Modified', this._startTime.toString());
     } else {
       response.setHeader('Cache-Control', 'no-cache, no-store');
     }
-    if (this._csp.has(pathName))
-      response.setHeader('Content-Security-Policy', this._csp.get(pathName));
 
     fs.readFile(filePath, function(err, data) {
       if (err) {
@@ -236,7 +221,7 @@ class TestServer {
         response.end(`File not found: ${filePath}`);
         return;
       }
-      response.setHeader('Content-Type', mime.getType(filePath));
+      response.setHeader('Content-Type', mime.lookup(filePath));
       response.end(data);
     });
   }
@@ -246,4 +231,4 @@ class TestServer {
   }
 }
 
-module.exports = {TestServer};
+module.exports = SimpleServer;
